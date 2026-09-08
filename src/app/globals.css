@@ -1,0 +1,58 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f8fafc;
+  --foreground: #0f172a;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans, system-ui, sans-serif);
+}
+
+/* PRINT SPECIFIC STYLES - GUARANTEED FULL VISIBILITY OF SIGNATURE FOOTER */
+@media print {
+  @page {
+    margin: 0mm !important;
+    size: A4 portrait;
+  }
+
+  html, body {
+    background-color: white !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    height: 100vh !important;
+    width: 100vw !important;
+    overflow: hidden !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .no-print, header, footer {
+    display: none !important;
+  }
+
+  #document-preview-sheet {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-start !important;
+    width: 100vw !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-width: none !important;
+    padding: 10mm 16mm 16mm 16mm !important;
+    margin: 0 auto !important;
+    border: none !important;
+    box-shadow: none !important;
+    box-sizing: border-box !important;
+    background-color: white !important;
+    page-break-after: avoid !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  #document-preview-sheet * {
+    visibility: visible !important;
+  }
+}
