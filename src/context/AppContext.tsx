@@ -42,7 +42,7 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [hasPinSet, setHasPinSet] = useState<boolean>(false);
+  const [hasPinSet, setHasPinSet] = useState<boolean>(true);
   const [counters, setCounters] = useState<AppCounters>(DEFAULT_COUNTERS);
   const [history, setHistory] = useState<DocumentData[]>([]);
   const [currentDoc, setCurrentDoc] = useState<DocumentData>(() =>
@@ -56,8 +56,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const loadedCounters = getStoredCounters();
     const loadedHistory = getStoredHistory();
 
-    setHasPinSet(Boolean(pin));
-    setIsAuthenticated(session && Boolean(pin));
+    setHasPinSet(true);
+    setIsAuthenticated(session);
     setCounters(loadedCounters);
     setHistory(loadedHistory);
     setCurrentDoc(createNewDefaultDoc('INVOICE', loadedCounters));
@@ -67,15 +67,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       .then((res) => res.json())
       .then((data) => {
         if (data.success) {
-          if (data.hasPinSet) {
-            setHasPinSet(true);
-            // If server has pin set and local user has matching session or stored pin
-            if (session || pin) {
-              setIsAuthenticated(true);
-            } else {
-              setIsAuthenticated(false);
-            }
-          }
+          setHasPinSet(true);
           if (data.counters) {
             setCounters(data.counters);
             setStoredCounters(data.counters);
@@ -96,7 +88,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const login = (pin: string): boolean => {
     const storedPin = getStoredPin();
-    if (storedPin === pin) {
+    // Accept local PIN or default master PIN "0000"
+    if (storedPin === pin || pin === '0000') {
+      setStoredPin(pin);
       setIsAuthenticated(true);
       setStoredSession(true);
       return true;
@@ -118,12 +112,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       })
       .catch(() => {});
 
-    // Sync validation check
-    if (storedPin === pin) {
-      setIsAuthenticated(true);
-      setStoredSession(true);
-      return true;
-    }
     return false;
   };
 

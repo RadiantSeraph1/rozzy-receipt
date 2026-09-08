@@ -240,6 +240,9 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
                 <p className="text-xs text-slate-500 mt-1">
                   Enter your master passcode to access the generator.
                 </p>
+                <span className="inline-block bg-slate-100 text-slate-700 border border-slate-200 px-2.5 py-1 rounded text-[11px] font-semibold mt-2">
+                  Master Passcode: <strong className="text-red-600 font-mono">0000</strong> (Or your set passcode)
+                </span>
               </div>
 
               {error && (
