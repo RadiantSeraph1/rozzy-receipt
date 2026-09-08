@@ -60,13 +60,65 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setIsAuthenticated(session && Boolean(pin));
     setCounters(loadedCounters);
     setHistory(loadedHistory);
-
     setCurrentDoc(createNewDefaultDoc('INVOICE', loadedCounters));
-    setIsInitialized(true);
+
+    // Synchronize global server state for multi-user shared setup
+    fetch('/api/system')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) {
+          if (data.hasPinSet) {
+            setHasPinSet(true);
+            // If server has pin set and local user has matching session or stored pin
+            if (session || pin) {
+              setIsAuthenticated(true);
+            } else {
+              setIsAuthenticated(false);
+            }
+          }
+          if (data.counters) {
+            setCounters(data.counters);
+            setStoredCounters(data.counters);
+            setCurrentDoc(createNewDefaultDoc('INVOICE', data.counters));
+          }
+          if (data.history && data.history.length > 0) {
+            setHistory(data.history);
+            setStoredHistory(data.history);
+          }
+        }
+        setIsInitialized(true);
+      })
+      .catch((err) => {
+        console.error('Failed to sync server state:', err);
+        setIsInitialized(true);
+      });
   }, []);
 
   const login = (pin: string): boolean => {
     const storedPin = getStoredPin();
+    if (storedPin === pin) {
+      setIsAuthenticated(true);
+      setStoredSession(true);
+      return true;
+    }
+
+    // Try server API login check
+    fetch('/api/system', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'login', pin }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && data.valid) {
+          setStoredPin(pin);
+          setIsAuthenticated(true);
+          setStoredSession(true);
+        }
+      })
+      .catch(() => {});
+
+    // Sync validation check
     if (storedPin === pin) {
       setIsAuthenticated(true);
       setStoredSession(true);
@@ -80,6 +132,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setHasPinSet(true);
     setIsAuthenticated(true);
     setStoredSession(true);
+
+    fetch('/api/system', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'setup', pin }),
+    }).catch((err) => console.error('Error saving PIN to server:', err));
   };
 
   const logout = (): void => {
@@ -132,6 +190,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     nextDoc.exchangeRate = currentDoc.exchangeRate;
 
     setCurrentDoc(nextDoc);
+
+    // Sync with server API
+    fetch('/api/system', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'save_doc',
+        doc: currentDoc,
+        counters: newCounters,
+      }),
+    }).catch((err) => console.error('Error saving doc to server:', err));
   };
 
   const loadDocFromHistory = (id: string): void => {
@@ -145,6 +214,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const updated = history.filter((d) => d.id !== id);
     setHistory(updated);
     setStoredHistory(updated);
+
+    fetch('/api/system', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'update_history', history: updated }),
+    }).catch((err) => console.error('Error deleting doc from server:', err));
   };
 
   const updateCounters = (newCounters: AppCounters): void => {
@@ -158,6 +233,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       : formatDocNumber(newCounters.receiptPrefix, newCounters.receiptCounter);
 
     setCurrentDoc((prev) => ({ ...prev, number: newNum }));
+
+    fetch('/api/system', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'update_counters', counters: newCounters }),
+    }).catch((err) => console.error('Error updating counters on server:', err));
   };
 
   const resetNewDoc = (mode?: DocumentMode): void => {
@@ -169,6 +250,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     clearStoredPin();
     setHasPinSet(false);
     setIsAuthenticated(false);
+
+    fetch('/api/system', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'reset_pin' }),
+    }).catch((err) => console.error('Error resetting PIN on server:', err));
   };
 
   const resetAndBypassAuth = (): void => {
@@ -176,6 +263,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setHasPinSet(false);
     setIsAuthenticated(true);
     setStoredSession(true);
+
+    fetch('/api/system', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'reset_pin' }),
+    }).catch((err) => console.error('Error resetting PIN on server:', err));
   };
 
   const factoryResetAll = (): void => {
@@ -188,6 +281,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setCurrentDoc(createNewDefaultDoc('INVOICE', DEFAULT_COUNTERS));
     setIsAuthenticated(true);
     setStoredSession(true);
+
+    fetch('/api/system', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'factory_reset' }),
+    }).catch((err) => console.error('Error factory resetting on server:', err));
   };
 
   return (
